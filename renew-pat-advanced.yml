@@ -26,17 +26,17 @@ steps:
       }
       
       #Retrieve all tokens
-      $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?api-version=7.1-preview.1"
+      $Url = "https://vssps.dev.azure.com/<YOUR ORGANIZATION>/_apis/tokens/pats?api-version=7.1-preview.1"
       $tokens = Invoke-RestMethod -Uri $Url -Headers $Headers -Method GET
 
       #Loop through all tokens
       foreach($token in $tokens.patTokens){
         #Delete the old Token
-        $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?authorizationId=$($token.authorizationId)&api-version=7.1-preview.1"
+        $Url = "https://vssps.dev.azure.com/<YOUR ORGANIZATION>/_apis/tokens/pats?authorizationId=$($token.authorizationId)&api-version=7.1-preview.1"
         $pat = Invoke-RestMethod -Uri $Url -Headers $Headers -Method DELETE
 
         #Create the new Token
-        $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?api-version=7.1-preview.1"
+        $Url = "https://vssps.dev.azure.com/<YOUR ORGANIZATION>/_apis/tokens/pats?api-version=7.1-preview.1"
         $body = @{
           AllOrgs = $true
           displayName = $token.displayName
