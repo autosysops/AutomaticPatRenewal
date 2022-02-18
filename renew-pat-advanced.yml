@@ -13,7 +13,7 @@ steps:
       Install-Module Az.Accounts -Force
 
       #Get the Azure Ad AccessToken
-      $username = "sa_devops@autosysops.onmicrosoft.com"
+      $username = $($env:USER_NAME)
       $userpassword = ConvertTo-SecureString -String $($env:USER_PASSWORD) -AsPlainText -Force
       $Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username, $userpassword
       $null = Connect-AzAccount -Credential $Credential  -TenantId  $($env:TENANT_ID)
@@ -50,4 +50,5 @@ steps:
       }
   env:
     USER_PASSWORD: $(sa_password)
+    USER_NAME: $(sa_username)
     TENANT_ID: $(tenantid)
