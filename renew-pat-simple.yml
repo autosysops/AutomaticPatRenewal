@@ -1,0 +1,49 @@
+trigger:
+- none
+
+pool:
+  vmImage: windows-latest
+
+steps:
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      #Install the required modules
+      Install-Module Az.Accounts -Force
+
+      #Get the Azure Ad AccessToken
+      $username = "sa_devops@autosysops.onmicrosoft.com"
+      $userpassword = ConvertTo-SecureString -String $($env:USER_PASSWORD) -AsPlainText -Force
+      $Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username, $userpassword
+      $null = Connect-AzAccount -Credential $Credential  -TenantId  $($env:TENANT_ID)
+      $adtoken = Get-AzAccessToken
+
+      #Create the authentication header for the DevOps API
+      $Headers = @{
+          "Content-Type" = "application/json"
+          Authorization = "Bearer $($adtoken.Token)"
+      }
+      
+      #Retrieve all tokens
+      $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?api-version=7.1-preview.1"
+      $tokens = Invoke-RestMethod -Uri $Url -Headers $Headers -Method GET
+
+      #Loop through all tokens
+      foreach($token in $tokens.patTokens){
+        #Create the new Token
+        $body = @{
+          AllOrgs = $true
+          authorizationId = $token.authorizationId
+          displayName = $token.displayName
+          scope = $pat.scope
+          validTo = (Get-Date ((Get-Date).AddDays(60)) -Format "MM/dd/yyyy HH:mm:ss")
+        }
+
+        $pat = Invoke-RestMethod -Uri $Url -Headers $Headers -Method PUT -Body (ConvertTo-Json $body)
+
+        Write-Output "Renewed Pat $($pat.patToken.displayName)"
+      }
+  env:
+    USER_PASSWORD: $(sa_password)
+    TENANT_ID: $(tenantid)

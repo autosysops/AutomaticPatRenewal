@@ -1,0 +1,53 @@
+trigger:
+- none
+
+pool:
+  vmImage: windows-latest
+
+steps:
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      #Install the required modules
+      Install-Module Az.Accounts -Force
+
+      #Get the Azure Ad AccessToken
+      $username = "sa_devops@autosysops.onmicrosoft.com"
+      $userpassword = ConvertTo-SecureString -String $($env:USER_PASSWORD) -AsPlainText -Force
+      $Credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $username, $userpassword
+      $null = Connect-AzAccount -Credential $Credential  -TenantId  $($env:TENANT_ID)
+      $adtoken = Get-AzAccessToken
+
+      #Create the authentication header for the DevOps API
+      $Headers = @{
+          "Content-Type" = "application/json"
+          Authorization = "Bearer $($adtoken.Token)"
+      }
+      
+      #Retrieve all tokens
+      $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?api-version=7.1-preview.1"
+      $tokens = Invoke-RestMethod -Uri $Url -Headers $Headers -Method GET
+
+      #Loop through all tokens
+      foreach($token in $tokens.patTokens){
+        #Delete the old Token
+        $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?authorizationId=$($token.authorizationId)&api-version=7.1-preview.1"
+        $pat = Invoke-RestMethod -Uri $Url -Headers $Headers -Method DELETE
+
+        #Create the new Token
+        $Url = "https://vssps.dev.azure.com/HenkBVCasus/_apis/tokens/pats?api-version=7.1-preview.1"
+        $body = @{
+          AllOrgs = $true
+          displayName = $token.displayName
+          scope = $pat.scope
+          validTo = (Get-Date ((Get-Date).AddDays(60)) -Format "MM/dd/yyyy HH:mm:ss")
+        }
+
+        $pat = Invoke-RestMethod -Uri $Url -Headers $Headers -Method POST -Body (ConvertTo-Json $body)
+
+        Write-Output "New Pat for $($pat.patToken.displayName) is $($pat.patToken.token)"
+      }
+  env:
+    USER_PASSWORD: $(sa_password)
+    TENANT_ID: $(tenantid)
